@@ -1,4 +1,4 @@
-import { WikiPage, SearchResult, PathNode, PageInfo, ProgressCallback } from '@/types/wikipedia';
+import { WikiPage, SearchResult, PathNode, PageInfo, ProgressCallback, GraphData, GraphNode, GraphEdge } from '@/types/wikipedia';
 
 export class WikipediaService {
   private readonly API_BASE = 'https://en.wikipedia.org/w/api.php';
@@ -7,10 +7,14 @@ export class WikipediaService {
   private visited: Set<string>;
   private queue: PathNode[];
   private onProgress?: ProgressCallback;
+  private graphNodes: Map<string, GraphNode>;
+  private graphEdges: GraphEdge[];
 
   constructor() {
     this.visited = new Set();
     this.queue = [];
+    this.graphNodes = new Map();
+    this.graphEdges = [];
   }
 
   setProgressCallback(callback: ProgressCallback) {
@@ -58,6 +62,8 @@ export class WikipediaService {
     const startTime = Date.now();
     this.visited.clear();
     this.queue = [];
+    this.graphNodes.clear();
+    this.graphEdges = [];
 
     startTitle = this.normalizeTitle(startTitle);
     endTitle = this.normalizeTitle(endTitle);
@@ -65,6 +71,16 @@ export class WikipediaService {
     const startNode: PathNode = { title: startTitle, parent: null, depth: 0 };
     this.queue.push(startNode);
     this.visited.add(startTitle);
+
+    // Add start node to graph
+    this.graphNodes.set(startTitle, {
+      id: startTitle,
+      title: startTitle,
+      depth: 0,
+      isInPath: false,
+      isStart: true,
+      isEnd: false
+    });
 
     while (this.queue.length > 0) {
       const current = this.queue.shift()!;
@@ -75,11 +91,13 @@ export class WikipediaService {
 
       if (current.title === endTitle) {
         const path = this.reconstructPath(current);
+        const graphData = this.buildGraphData(path);
         return {
           path,
           visitedCount: this.visited.size,
           searchTime: Date.now() - startTime,
-          maxDepth: current.depth
+          maxDepth: current.depth,
+          graphData
         };
       }
 
@@ -91,25 +109,44 @@ export class WikipediaService {
       
       for (const link of links) {
         const linkTitle = this.normalizeTitle(link.title);
-        
+
+        // Add edge to graph
+        this.graphEdges.push({
+          source: current.title,
+          target: linkTitle,
+          isInPath: false
+        });
+
         if (!this.visited.has(linkTitle)) {
           this.visited.add(linkTitle);
-          
+
+          // Add node to graph
+          this.graphNodes.set(linkTitle, {
+            id: linkTitle,
+            title: linkTitle,
+            depth: current.depth + 1,
+            isInPath: false,
+            isStart: false,
+            isEnd: linkTitle === endTitle
+          });
+
           const newNode: PathNode = {
             title: linkTitle,
             parent: current,
             depth: current.depth + 1
           };
-          
+
           this.queue.push(newNode);
 
           if (linkTitle === endTitle) {
             const path = this.reconstructPath(newNode);
+            const graphData = this.buildGraphData(path);
             return {
               path,
               visitedCount: this.visited.size,
               searchTime: Date.now() - startTime,
-              maxDepth: newNode.depth
+              maxDepth: newNode.depth,
+              graphData
             };
           }
         }
@@ -209,5 +246,26 @@ export class WikipediaService {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  }
+
+  private buildGraphData(path: string[]): GraphData {
+    const pathSet = new Set(path);
+
+    // Mark nodes in path
+    for (const [title, node] of this.graphNodes) {
+      node.isInPath = pathSet.has(title);
+    }
+
+    // Mark edges in path
+    for (const edge of this.graphEdges) {
+      const sourceIndex = path.indexOf(edge.source);
+      const targetIndex = path.indexOf(edge.target);
+      edge.isInPath = sourceIndex !== -1 && targetIndex !== -1 && Math.abs(sourceIndex - targetIndex) === 1;
+    }
+
+    return {
+      nodes: Array.from(this.graphNodes.values()),
+      edges: this.graphEdges
+    };
   }
 }

@@ -16,6 +16,7 @@ export interface SearchResult {
   visitedCount: number;
   searchTime: number;
   maxDepth: number;
+  graphData: GraphData;
 }
 
 export interface PathNode {
@@ -39,4 +40,24 @@ export interface SearchProgress {
 
 export interface ProgressCallback {
   (visitedCount: number, currentDepth: number, currentNode: string): void;
+}
+
+export interface GraphNode {
+  id: string;
+  title: string;
+  depth: number;
+  isInPath: boolean;
+  isStart: boolean;
+  isEnd: boolean;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  isInPath: boolean;
+}
+
+export interface GraphData {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
 }

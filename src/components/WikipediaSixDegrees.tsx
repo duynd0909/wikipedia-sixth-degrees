@@ -11,6 +11,7 @@ import { WikipediaService } from '@/services/WikipediaService';
 import { Autocomplete } from './Autocomplete';
 import { SearchProgress as SearchProgressComponent } from './SearchProgress';
 import { PathVisualization } from './PathVisualization';
+import { GraphVisualization } from './GraphVisualization';
 
 // Main App Component
 export default function WikipediaSixDegrees() {
@@ -184,12 +185,16 @@ export default function WikipediaSixDegrees() {
 
         {/* Results */}
         {searchResult && (
-          <PathVisualization
-            path={searchResult.path}
-            pathInfo={pathInfo}
-            searchTime={searchResult.searchTime}
-            visitedCount={searchResult.visitedCount}
-          />
+          <div className="space-y-8">
+            <PathVisualization
+              path={searchResult.path}
+              pathInfo={pathInfo}
+              searchTime={searchResult.searchTime}
+              visitedCount={searchResult.visitedCount}
+            />
+
+            <GraphVisualization graphData={searchResult.graphData} />
+          </div>
         )}
 
         {/* Info Section */}
